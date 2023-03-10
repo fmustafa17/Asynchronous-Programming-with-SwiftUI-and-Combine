@@ -8,22 +8,42 @@
 import SwiftUI
 
 struct ContentView: View {
-  @State var name = ""
-  var body: some View {
-    VStack {
-      Image(systemName: "globe")
-        .imageScale(.large)
-        .foregroundColor(.accentColor)
-      TextField("Enter your name here", text: $name)
-        .padding(.all)
-        .border(Color.pink, width: 1)
-        .padding(.all)
-      Text("Hello, \(name)!")
-        .font(.title)
-        .foregroundColor(Color.pink)
+    @State var name: String = ""
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "globe")
+                .imageScale(.large)
+                .foregroundColor(.accentColor)
+
+            TextField(
+                "Enter your name here",
+                text: $name
+            )
+            .frame(height: 40)
+            .multilineTextAlignment(.center)
+            .border(.blue, width: 1)
+            .disableAutocorrection(true)
+
+            // Show the comma if name contains at least one letter
+            if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(
+                    "Hello!"
+                )
+            } else {
+                Text(
+                    "Hello, \(name)!"
+                )
+            }
+        
+            // Add a button to reset the name variable to an empty string
+            Button("Reset") {
+                name = ""
+            }
+        }
+        .padding()
+
     }
-    .padding()
-  }
 }
 
 struct ContentView_Previews: PreviewProvider {
