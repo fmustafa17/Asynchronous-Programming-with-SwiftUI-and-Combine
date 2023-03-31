@@ -21,17 +21,12 @@ class SignUpFormViewModel: ObservableObject {
     @Published var passwordMessage: String = ""
     @Published var isValid: Bool = false
     
+    // MARK: - Publishers
     private lazy var isUsernameLengthValidPublisher: AnyPublisher<Bool, Never> = {
         $username
             .map { username in
                 username.count >= 3 // implicit return
             }
-            .eraseToAnyPublisher()
-    }()
-    
-    private lazy var isPasswordEmptyPublisher: AnyPublisher<Bool, Never> = {
-        $password
-            .map(\.isEmpty)
             .eraseToAnyPublisher()
     }()
     
@@ -42,14 +37,24 @@ class SignUpFormViewModel: ObservableObject {
     }()
     
     private lazy var isPasswordValidPublisher: AnyPublisher<Bool, Never> = {
-        Publishers.CombineLatest(isPasswordEmptyPublisher, isPasswordMatching)
-            .map { !$0 && $1 }
+        Publishers.CombineLatest(passwordLengthValidator, isPasswordMatching)
+            .map { $0 && $1 }
             .eraseToAnyPublisher()
     }()
     
     private lazy var isFormValidPublisher: AnyPublisher<Bool, Never> = {
         Publishers.CombineLatest(isUsernameLengthValidPublisher, isPasswordValidPublisher)
             .map { $0 && $1 }
+            .eraseToAnyPublisher()
+    }()
+    
+    // Exercise 1
+    // Display warning message if password is less than 8 characters
+    private lazy var passwordLengthValidator: AnyPublisher<Bool, Never> = {
+        $password
+            .map { password in
+                !password.isEmpty && password.count >= 8
+            }
             .eraseToAnyPublisher()
     }()
     
@@ -63,10 +68,10 @@ class SignUpFormViewModel: ObservableObject {
             }
             .assign(to: &$usernameValidationMessage)
         
-        Publishers.CombineLatest(isPasswordEmptyPublisher, isPasswordMatching)
-            .map { passwordIsEmpty, passwordsMatch in
-                if passwordIsEmpty {
-                    return "Password must not be empty"
+        Publishers.CombineLatest(passwordLengthValidator, isPasswordMatching)
+            .map { passwordLengthValid, passwordsMatch in
+                if !passwordLengthValid {
+                    return "Password needs to be at least 8 characters"
                 } else if !passwordsMatch {
                     return "Passwords do not match"
                 }
