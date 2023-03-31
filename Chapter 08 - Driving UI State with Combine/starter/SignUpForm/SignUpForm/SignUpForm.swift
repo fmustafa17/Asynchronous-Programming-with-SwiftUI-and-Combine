@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Navajo_Swift
 
 // MARK: - View Model
 class SignUpFormViewModel: ObservableObject {
@@ -20,6 +21,12 @@ class SignUpFormViewModel: ObservableObject {
     @Published var usernameValidationMessage: String = ""
     @Published var passwordMessage: String = ""
     @Published var isValid: Bool = false
+    
+    private let validStrengths = [
+        PasswordStrength.reasonable,
+        PasswordStrength.strong,
+        PasswordStrength.veryStrong
+    ]
     
     // MARK: - Publishers
     private lazy var isUsernameLengthValidPublisher: AnyPublisher<Bool, Never> = {
@@ -58,6 +65,18 @@ class SignUpFormViewModel: ObservableObject {
             .eraseToAnyPublisher()
     }()
     
+    // Exercise 2
+    // Check if the password's strength is at least `reasonable`
+    private lazy var passwordStrengthValidator: AnyPublisher<Bool, Never> = {
+        $password
+            .map { password in
+                let currentStrength = Navajo.strength(ofPassword: password)
+
+                return self.validStrengths.contains(currentStrength) ? true : false
+            }
+            .eraseToAnyPublisher()
+    }()
+    
     init() {
         isFormValidPublisher
             .assign(to: &$isValid)
@@ -67,6 +86,15 @@ class SignUpFormViewModel: ObservableObject {
                 $0 ? "" : "Username needs to be at least 3 characters"
             }
             .assign(to: &$usernameValidationMessage)
+        
+         passwordStrengthValidator
+            .map { passwordIsStrongEnough in
+                if !passwordIsStrongEnough {
+                    return "Password is not strong enough"
+                }
+                return "Password is strong"
+            }
+            .assign(to: &$passwordMessage)
         
         Publishers.CombineLatest(passwordLengthValidator, isPasswordMatching)
             .map { passwordLengthValid, passwordsMatch in
