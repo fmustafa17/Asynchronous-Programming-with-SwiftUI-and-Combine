@@ -44,9 +44,13 @@ class SignUpFormViewModel: ObservableObject {
     }()
     
     private lazy var isPasswordValidPublisher: AnyPublisher<Bool, Never> = {
-        Publishers.CombineLatest(passwordLengthValidator, isPasswordMatching)
-            .map { $0 && $1 }
-            .eraseToAnyPublisher()
+        Publishers.CombineLatest3(
+            passwordLengthValidator,
+            passwordStrengthValidator,
+            isPasswordMatching
+        )
+        .map { $0 && $1 && $2 }
+        .eraseToAnyPublisher()
     }()
     
     private lazy var isFormValidPublisher: AnyPublisher<Bool, Never> = {
@@ -60,7 +64,7 @@ class SignUpFormViewModel: ObservableObject {
     private lazy var passwordLengthValidator: AnyPublisher<Bool, Never> = {
         $password
             .map { password in
-                !password.isEmpty && password.count >= 8
+                password.count >= 8
             }
             .eraseToAnyPublisher()
     }()
@@ -71,11 +75,32 @@ class SignUpFormViewModel: ObservableObject {
         $password
             .map { password in
                 let currentStrength = Navajo.strength(ofPassword: password)
-
-                return self.validStrengths.contains(currentStrength) ? true : false
+                return self.getPasswordStrength(currentStrength)
             }
             .eraseToAnyPublisher()
     }()
+    
+    // Exercise 3
+    // Display the number and color of the progress bar based on password strength
+    @Published var passwordStrengthValue = 0.0
+    @Published var passwordProgressColor: Color = Color.red
+    @Published var passwordProgressMessage: String = ""
+    
+    private func getPasswordStrength(_ currentStrength: PasswordStrength) -> Bool {
+        if currentStrength == PasswordStrength.veryWeak ||
+            currentStrength == PasswordStrength.weak {
+            passwordStrengthValue = 0.3
+            passwordProgressColor = .red
+            return false
+        } else if currentStrength == PasswordStrength.reasonable {
+            passwordStrengthValue = 0.6
+            passwordProgressColor = .yellow
+            return false
+        }
+        passwordStrengthValue = 1.0
+        passwordProgressColor = .green
+        return true
+    }
     
     init() {
         isFormValidPublisher
@@ -86,16 +111,7 @@ class SignUpFormViewModel: ObservableObject {
                 $0 ? "" : "Username needs to be at least 3 characters"
             }
             .assign(to: &$usernameValidationMessage)
-        
-         passwordStrengthValidator
-            .map { passwordIsStrongEnough in
-                if !passwordIsStrongEnough {
-                    return "Password is not strong enough"
-                }
-                return "Password is strong"
-            }
-            .assign(to: &$passwordMessage)
-        
+
         Publishers.CombineLatest(passwordLengthValidator, isPasswordMatching)
             .map { passwordLengthValid, passwordsMatch in
                 if !passwordLengthValid {
@@ -106,6 +122,23 @@ class SignUpFormViewModel: ObservableObject {
                 return ""
             }
             .assign(to: &$passwordMessage)
+        
+        Publishers.CombineLatest3(
+            passwordLengthValidator,
+            isPasswordMatching,
+            passwordStrengthValidator
+        )
+        .map { passwordLengthValid, passwordsMatch, passwordIsStrongEnough in
+            
+            if passwordLengthValid && passwordsMatch {
+                if !passwordIsStrongEnough {
+                    return "Password is not strong enough"
+                }
+            }
+
+            return ""
+        }
+        .assign(to: &$passwordProgressMessage)
     }
 }
 
@@ -132,6 +165,10 @@ struct SignUpForm: View {
             } footer: {
                 Text(viewModel.passwordMessage)
                     .foregroundColor(.red)
+                ProgressView(value: viewModel.passwordStrengthValue, total: 1.0) {
+                        Text(viewModel.passwordProgressMessage)
+                    }
+                .tint(viewModel.passwordProgressColor)
             }
             
             // Submit button
